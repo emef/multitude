@@ -4,13 +4,15 @@
 #include <algorithm>
 #include <iostream>
 #include <mutex>
+#include <random>
+#include <set>
 #include <thread>
 #include <vector>
-#include <set>
 #include "matrix.h"
 #include "thread_pool.h"
 
 static ThreadPool pool(std::thread::hardware_concurrency());
+//static ThreadPool pool(1);
 
 template<typename T>
 class ValueOperation {
@@ -185,10 +187,67 @@ class MinColumn {
   }
 };
 
+class RandomSample {
+ public:
+  struct Args {
+    Args(int col, int maxSamples) : col(col), maxSamples(maxSamples) {}
+    const int col;
+    const int maxSamples;
+  };
+
+  struct BlockResult {
+    BlockResult(std::vector<double> sample) : sample(sample) {}
+    const std::vector<double> sample;
+  };
+
+  struct Result {
+    Result(std::vector<std::vector<double>> samples) : samples(samples) {}
+    const std::vector<std::vector<double>> samples;
+  };
+
+  BlockResult apply(const MemoryBlock& block, Args& args) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dis(0, 1);
+
+    auto const &blockData = block.getBlockData();
+    auto const data = blockData.getData();
+
+    int rows = blockData.getRows();
+    int cols = blockData.getCols();
+    int size = std::min(rows, args.maxSamples);
+    std::vector<double> samples(size);
+
+    int i = 0;
+    for (; i<size; i++) {
+      samples[i] = data[i*cols + args.col];
+    }
+
+    for (; i<rows; i++) {
+      int j = dis(gen) * (i+1);
+
+      if (j < size) {
+        samples[j] = data[i*cols + args.col];
+      }
+    }
+
+    return {samples};
+  }
+
+  Result combine(std::vector<BlockResult> results) {
+    std::vector<std::vector<double>> samples;
+    for (auto& result : results) {
+      samples.push_back(result.sample);
+    }
+    return {samples};
+  }
+};
+
 
 ValueOperation<Count> COUNT;
 ValueOperation<SumColumn> SUM;
 ValueOperation<MaxColumn> MAX;
 ValueOperation<MinColumn> MIN;
+ValueOperation<RandomSample> SAMPLE;
 
 #endif

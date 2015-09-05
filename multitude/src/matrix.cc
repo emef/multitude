@@ -1,9 +1,9 @@
 #include <map>
 #include <string>
 #include <vector>
-#include "block.h"
-#include "loader.h"
-#include "matrix.h"
+#include "../include/block.h"
+#include "../include/loader.h"
+#include "../include/matrix.h"
 
 DMatrix::DMatrix(std::vector<std::shared_ptr<MemoryBlock>> memoryBlocks,
                  std::vector<std::shared_ptr<RemoteBlock>> remoteBlocks) {

@@ -1,0 +1,3 @@
+doxygen for docs
+
+cmake -DCMAKE_INSTALL_PREFIX:PATH=/tmp . && make install

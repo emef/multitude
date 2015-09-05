@@ -1,12 +1,14 @@
+#include <cmath>
 #include <fstream>
 #include <future>
 #include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
-#include "block.h"
-#include "loader.h"
+#include "../include/block.h"
+#include "../include/loader.h"
 
+#define MIN_BLOCK 64000
 #define HEADER_SIZE sizeof(int)
 #define ID_LENGTH 64
 
@@ -31,7 +33,12 @@ std::unique_ptr<FileStats> stat(std::string path) {
 }
 
 int determineNumBlocks(FileStats& fileStats) {
-  return std::thread::hardware_concurrency();
+  long numCores = std::thread::hardware_concurrency();
+  if (fileStats.size > numCores * MIN_BLOCK) {
+    return numCores;
+  }
+
+  return (int)(ceil(fileStats.size / MIN_BLOCK));
 }
 
 std::string nextId() {

@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <chrono>
 #include <fstream>
 #include <future>
@@ -6,11 +7,11 @@
 #include <memory>
 #include <thread>
 #include <vector>
-#include "../block.h"
-#include "../loader.h"
-#include "../matrix.h"
-#include "../thread_pool.h"
-#include "../ops.h"
+#include "include/block.h"
+#include "include/loader.h"
+#include "include/matrix.h"
+#include "include/thread_pool.h"
+#include "include/ops.h"
 
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::milliseconds ms;
@@ -60,7 +61,7 @@ bool verifyGeneratedFile(std::string path) {
 int main(int argc, char *argv[]) {
   std::cout << std::fixed;
 
-  std::string path = "/tmp/ex.mult";
+  std::string path = "/tmp/ex.bin";
   /*
   generateDataFile(path, 1000000, 200);
   if (!verifyGeneratedFile(path)) {
@@ -70,7 +71,7 @@ int main(int argc, char *argv[]) {
 
   BlockLoader blockLoader;
   auto t0 = Time::now();
-  auto matrix = loadFromFiles(blockLoader, {path, path, path, path});
+  auto matrix = loadFromFiles(blockLoader, {path});
   std::cout << "LOADED (" << millisSince(t0) << "ms)" << std::endl;
 
   t0 = Time::now();
@@ -78,18 +79,38 @@ int main(int argc, char *argv[]) {
   std::cout << "COUNT=" << count << " (" << millisSince(t0) << "ms)" << std::endl;
 
   t0 = Time::now();
-  auto sum0 =0;
-  for (int i=0; i<1000; i++)
-    sum0 = SUM.apply(*matrix, {0}).sum;
-  std::cout << "SUM0=" << sum0 << " (" << millisSince(t0) << "ms)" << std::endl;
-
-  t0 = Time::now();
   auto max0 = MAX.apply(*matrix, {0}).max;
   std::cout << "MAX0=" << max0 << " (" << millisSince(t0) << "ms)" << std::endl;
 
   t0 = Time::now();
+  auto sum0 = SUM.apply(*matrix, {0}).sum;
+  std::cout << "SUM0=" << sum0 << " (" << millisSince(t0) << "ms)" << std::endl;
+
+  t0 = Time::now();
   auto min0 = MIN.apply(*matrix, {0}).min;
   std::cout << "MIN0=" << min0 << " (" << millisSince(t0) << "ms)" << std::endl;
+
+  t0 = Time::now();
+  auto sample0 = SAMPLE.apply(*matrix, {0, 1000}).samples;
+  std::cout << "SAMPLE0 (" << millisSince(t0) << "ms)" << std::endl;
+
+  t0 = Time::now();
+  std::vector<double> joined;
+  for (int i=0; i<sample0.size(); i++) {
+    std::vector<double> sample = sample0[i];
+    for (int j=0; j<sample.size(); j++) {
+      joined.push_back(sample[j]);
+    }
+  }
+
+  std::sort(joined.begin(), joined.end());
+  std::vector<double> percentiles;
+  for (int i=0; i<10; i++) {
+    int idx = (i/10.0) * joined.size();
+    percentiles.push_back(joined[idx]);
+  }
+
+  std::cout << "PERCENTILE0 (" << millisSince(t0) << "ms)" << std::endl;
 
   return 0;
 }
