@@ -4,10 +4,10 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -pedantic")
 # --------------------------------------------------
 # library
 add_library (multitude
-  src/loader.cc
+  src/context.cc
   src/matrix.cc
   include/block.h
-  include/loader.h
+  include/context.h
   include/matrix.h
   include/ops.h
   include/thread_pool.h

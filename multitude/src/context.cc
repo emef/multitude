@@ -6,13 +6,30 @@
 #include <string>
 #include <vector>
 #include "../include/block.h"
-#include "../include/loader.h"
+#include "../include/context.h"
+#include "../include/matrix.h"
 
 #define MIN_BLOCK 64000
 #define HEADER_SIZE sizeof(int)
 #define ID_LENGTH 64
 
 namespace Multitude {
+
+// Block loading functions.
+std::vector<std::shared_ptr<MemoryBlock>> loadToMemory(std::string path);
+
+/**
+ * Loads a distributed matrix which is contained in the binary
+ * file.
+ *
+ * @param path - Input path.
+ * @return - Distributed matrix.
+ */
+std::unique_ptr<DMatrix> DContext::binaryFile(std::string path) {
+  auto memoryBlocks = loadToMemory(path);
+  std::vector<std::shared_ptr<RemoteBlock>> empty;
+  return std::make_unique<DMatrix>(memoryBlocks, empty);
+}
 
 /**
  * File statistics of multitude-encoded binary file.
@@ -61,9 +78,7 @@ std::shared_ptr<MemoryBlock> loadFromDescriptor(
  * @param path - Path to binary matrix file.
  * @return - Vector of memory blocks.
  */
-std::vector<std::shared_ptr<MemoryBlock>> BlockLoader::loadToMemory(
-    std::string path) {
-
+std::vector<std::shared_ptr<MemoryBlock>> loadToMemory(std::string path) {
   std::unique_ptr<FileStats> fileStats = stat(path);
   FileStats& statsRef = *fileStats;
   int numBlocks = determineNumBlocks(*fileStats);

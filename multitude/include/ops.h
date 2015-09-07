@@ -19,7 +19,12 @@ static ThreadPool pool(std::thread::hardware_concurrency());
  * Operation on a distributed matrix that produces a value by combining
  * results of applying an operation to individual blocks.
  *
- *
+ * The templated type, T, must have the following traits:
+ *   1. Define a nested type named Args: arguments passed to apply.
+ *   2. Define a nested type BlockResult: result of applying to one block.
+ *   3. Define a nested type Result: final result of the operation.
+ *   4. Define function apply(block, args): apply operation to one block.
+ *   5. Define function combine(results): combine individual block results.
  */
 template<typename T>
 class ValueOperation {

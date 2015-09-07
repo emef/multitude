@@ -8,7 +8,7 @@
 #include <thread>
 #include <vector>
 #include "include/block.h"
-#include "include/loader.h"
+#include "include/context.h"
 #include "include/matrix.h"
 #include "include/thread_pool.h"
 #include "include/ops.h"
@@ -40,10 +40,12 @@ void generateDataFile(std::string path, int rows, int cols) {
 }
 
 bool verifyGeneratedFile(std::string path) {
-  BlockLoader loader;
-  auto mBlocks = loader.loadToMemory(path);
+  DContext context;
+  auto matrix = context.binaryFile(path);
+  auto mBlocks = matrix->getMemoryBlocks();
   double last = -1;
-  for (auto const &block : mBlocks) {
+  for (auto const &entry : mBlocks) {
+    auto block = entry.second;
     auto &bData = block->getBlockData();
     for (int i=0; i<bData.getRows(); i++) {
       for (int j=0; j<bData.getCols(); j++) {
@@ -71,9 +73,9 @@ int main(int argc, char *argv[]) {
   }
   */
 
-  BlockLoader blockLoader;
+  DContext context;
   auto t0 = Time::now();
-  auto matrix = loadFromFiles(blockLoader, {path});
+  auto matrix = context.binaryFile(path);
   std::cout << "LOADED (" << millisSince(t0) << "ms)" << std::endl;
 
   t0 = Time::now();

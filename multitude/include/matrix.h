@@ -35,18 +35,6 @@ class DMatrix {
   std::map<std::string, std::shared_ptr<RemoteBlock>> remoteBlocks;
 };
 
-/**
- * Loads a distributed matrix which is contained in the input
- * files. Each file should be binary formatted with the expected
- * header, containing the same number of columns.
- *
- * @param blockLoader - Block loader to be used.
- * @param paths - Input paths.
- * @return - Distributed matrix.
- */
-std::unique_ptr<DMatrix> loadFromFiles(BlockLoader& blockLoader,
-                                       std::vector<std::string> paths);
-
 }
 
 #endif
