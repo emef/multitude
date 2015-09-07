@@ -13,6 +13,8 @@
 #include "include/thread_pool.h"
 #include "include/ops.h"
 
+using namespace Multitude;
+
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::milliseconds ms;
 typedef std::chrono::duration<float> fsec;
@@ -61,7 +63,7 @@ bool verifyGeneratedFile(std::string path) {
 int main(int argc, char *argv[]) {
   std::cout << std::fixed;
 
-  std::string path = "/tmp/ex.bin";
+  std::string path = "/tmp/bigger.bin";
   /*
   generateDataFile(path, 1000000, 200);
   if (!verifyGeneratedFile(path)) {
@@ -92,22 +94,14 @@ int main(int argc, char *argv[]) {
 
   t0 = Time::now();
   auto sample0 = SAMPLE.apply(*matrix, {0, 1000}).samples;
-  std::cout << "SAMPLE0 (" << millisSince(t0) << "ms)" << std::endl;
+  std::cout << "SAMPLE0=" << sample0->size() << " (" << millisSince(t0) << "ms)" << std::endl;
 
   t0 = Time::now();
-  std::vector<double> joined;
-  for (int i=0; i<sample0.size(); i++) {
-    std::vector<double> sample = sample0[i];
-    for (int j=0; j<sample.size(); j++) {
-      joined.push_back(sample[j]);
-    }
-  }
-
-  std::sort(joined.begin(), joined.end());
+  std::sort(sample0->begin(), sample0->end());
   std::vector<double> percentiles;
   for (int i=0; i<10; i++) {
-    int idx = (i/10.0) * joined.size();
-    percentiles.push_back(joined[idx]);
+    int idx = (i/10.0) * sample0->size();
+    percentiles.push_back((*sample0)[idx]);
   }
 
   std::cout << "PERCENTILE0 (" << millisSince(t0) << "ms)" << std::endl;

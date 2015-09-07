@@ -11,12 +11,26 @@
 #include "matrix.h"
 #include "thread_pool.h"
 
-static ThreadPool pool(std::thread::hardware_concurrency());
-//static ThreadPool pool(1);
+namespace Multitude {
 
+static ThreadPool pool(std::thread::hardware_concurrency());
+
+/**
+ * Operation on a distributed matrix that produces a value by combining
+ * results of applying an operation to individual blocks.
+ *
+ *
+ */
 template<typename T>
 class ValueOperation {
  public:
+  /**
+   * Apply the templated operation to matrix subject to operation args.
+   *
+   * @param matrix - Matrix to apply operation t.
+   * @param args - Operation arguments.
+   * @return - Operation result.
+   */
   typename T::Result apply(DMatrix& matrix, typename T::Args args) {
     std::vector<std::future<typename T::BlockResult>> resultFutures;
     for (auto const &entry : matrix.getMemoryBlocks()) {
@@ -54,7 +68,7 @@ class Count {
     const long count;
   };
 
-  BlockResult apply(const MemoryBlock& block, Args& args) {
+  BlockResult apply(const MemoryBlock& block, const Args& args) {
     auto const &data = block.getBlockData();
     return {data.getRows()};
   }
@@ -85,7 +99,7 @@ class SumColumn {
     const double sum;
   };
 
-  BlockResult apply(const MemoryBlock& block, Args& args) {
+  BlockResult apply(const MemoryBlock& block, const Args& args) {
     auto const &blockData = block.getBlockData();
     auto const data = blockData.getData();
     double sum = 0;
@@ -126,7 +140,7 @@ class MaxColumn {
     const double max;
   };
 
-  BlockResult apply(const MemoryBlock& block, Args& args) {
+  BlockResult apply(const MemoryBlock& block, const Args& args) {
     auto const &blockData = block.getBlockData();
     auto const data = blockData.getData();
     double max = data[0];
@@ -196,16 +210,16 @@ class RandomSample {
   };
 
   struct BlockResult {
-    BlockResult(std::vector<double> sample) : sample(sample) {}
-    const std::vector<double> sample;
+    BlockResult(std::shared_ptr<std::vector<double>> sample) : sample(sample) {}
+    const std::shared_ptr<std::vector<double>> sample;
   };
 
   struct Result {
-    Result(std::vector<std::vector<double>> samples) : samples(samples) {}
-    const std::vector<std::vector<double>> samples;
+    Result(std::shared_ptr<std::vector<double>> samples) : samples(samples) {}
+    const std::shared_ptr<std::vector<double>> samples;
   };
 
-  BlockResult apply(const MemoryBlock& block, Args& args) {
+  BlockResult apply(const MemoryBlock& block, const Args& args) {
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<> dis(0, 1);
@@ -216,7 +230,8 @@ class RandomSample {
     int rows = blockData.getRows();
     int cols = blockData.getCols();
     int size = std::min(rows, args.maxSamples);
-    std::vector<double> samples(size);
+    auto pSamples = std::make_shared<std::vector<double>>(size);
+    std::vector<double> &samples = *pSamples;
 
     int i = 0;
     for (; i<size; i++) {
@@ -231,13 +246,14 @@ class RandomSample {
       }
     }
 
-    return {samples};
+    return {pSamples};
   }
 
   Result combine(std::vector<BlockResult> results) {
-    std::vector<std::vector<double>> samples;
+    auto samples = std::make_shared<std::vector<double>>();
     for (auto& result : results) {
-      samples.push_back(result.sample);
+      auto blockSamples = result.sample;
+      samples->insert(samples->end(), blockSamples->begin(), blockSamples->end());
     }
     return {samples};
   }
@@ -249,5 +265,7 @@ ValueOperation<SumColumn> SUM;
 ValueOperation<MaxColumn> MAX;
 ValueOperation<MinColumn> MIN;
 ValueOperation<RandomSample> SAMPLE;
+
+}
 
 #endif

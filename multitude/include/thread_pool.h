@@ -8,6 +8,14 @@
 #include <queue>
 #include <thread>
 
+namespace Multitude {
+
+/**
+ * Task-based thread pool.
+ *
+ * Tasks submitted to the pool are executed as soon as a free
+ * worker thread is available (FIFO).
+ */
 class ThreadPool {
  public:
   ThreadPool(int numThreads) : running(true) {
@@ -43,13 +51,19 @@ class ThreadPool {
     }
   }
 
+  /**
+   * Schedule a task to run on the thread pool (FIFO).
+   *
+   * @param task - Task to execute on the thread pool.
+   * @return - Future of task's result.
+   */
   template<typename T>
-  std::future<T> schedule(std::function<T ()> producer) {
+  std::future<T> schedule(std::function<T ()> task) {
     auto promise = std::make_shared<std::promise<T>>();
 
-    std::function<void ()> task = [=]() {
+    std::function<void ()> workerFn = [=]() {
       try {
-        T value = producer();
+        T value = task();
         promise->set_value(value);
       } catch (...) {
         promise->set_exception(std::current_exception());
@@ -58,7 +72,7 @@ class ThreadPool {
 
     {
       std::unique_lock<std::mutex> lock(mutex);
-      workQueue.push(task);
+      workQueue.push(workerFn);
       cond.notify_one();
     }
 
@@ -75,5 +89,7 @@ class ThreadPool {
   std::queue<std::function<void ()>> workQueue;
   std::vector<std::thread> threads;
 };
+
+}
 
 #endif

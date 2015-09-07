@@ -5,6 +5,8 @@
 #include "../include/loader.h"
 #include "../include/matrix.h"
 
+namespace Multitude {
+
 DMatrix::DMatrix(std::vector<std::shared_ptr<MemoryBlock>> memoryBlocks,
                  std::vector<std::shared_ptr<RemoteBlock>> remoteBlocks) {
 
@@ -27,4 +29,6 @@ std::unique_ptr<DMatrix> loadFromFiles(BlockLoader& blockLoader,
 
   std::vector<std::shared_ptr<RemoteBlock>> empty;
   return std::make_unique<DMatrix>(memoryBlocks, empty);
+}
+
 }

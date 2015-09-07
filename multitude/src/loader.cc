@@ -12,53 +12,27 @@
 #define HEADER_SIZE sizeof(int)
 #define ID_LENGTH 64
 
+namespace Multitude {
+
+/**
+ * File statistics of multitude-encoded binary file.
+ */
 struct FileStats {
   FileStats(int cols, long size) : cols(cols), size(size) {}
-  int cols;
-  long size;
+  int cols;   ///< Number of columns in the matrix.
+  long size;  ///< Total size of file in bytes.
 };
 
-std::unique_ptr<FileStats> stat(std::string path) {
-  std::ifstream file(path, std::ios::in | std::ios::binary);
-  if (!file.is_open()) {
-    return NULL;
-  }
+// File stats utilities.
+std::unique_ptr<FileStats> stat(std::string path);
+std::string nextBlockId();
+int determineNumBlocks(FileStats& fileStats);
+long getBlockSize(FileStats& fileStats, int numBlocks);
 
-  int cols;
-  file.read((char*)&cols, sizeof(int));
-  file.seekg(0, file.end);
-  long size = file.tellg();
 
-  return std::make_unique<FileStats>(cols, size);
-}
-
-int determineNumBlocks(FileStats& fileStats) {
-  long numCores = std::thread::hardware_concurrency();
-  if (fileStats.size > numCores * MIN_BLOCK) {
-    return numCores;
-  }
-
-  return (int)(ceil(fileStats.size / MIN_BLOCK));
-}
-
-std::string nextId() {
-  static const char alphanum[] =
-      "0123456789"
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-      "abcdefghijklmnopqrstuvwxyz";
-
-  static const int n = sizeof(alphanum) - 1;
-
-  char s[ID_LENGTH+1];
-  for (int i = 0; i < ID_LENGTH; ++i) {
-    int idx = rand() / (RAND_MAX / n + 1);
-    s[i] = alphanum[idx];
-  }
-
-  s[ID_LENGTH] = 0;
-  return std::string(s);
-}
-
+/**
+ * Load a memory block from file and block descriptor.
+ */
 std::shared_ptr<MemoryBlock> loadFromDescriptor(
     const FileStats& fileStats,
     std::unique_ptr<BlockDescriptor> descriptor) {
@@ -76,19 +50,17 @@ std::shared_ptr<MemoryBlock> loadFromDescriptor(
 
   auto blockData = std::make_unique<BlockData>(rows, fileStats.cols,
                                                std::move(data));
-  return std::make_shared<MemoryBlock>(nextId(),
+  return std::make_shared<MemoryBlock>(nextBlockId(),
                                        std::move(descriptor),
                                        std::move(blockData));
 }
 
-long getBlockSize(FileStats& fileStats, int numBlocks) {
-  long rowBytes = fileStats.cols * sizeof(double);
-  long blockSize = fileStats.size / numBlocks;
-
-  // Round up to nearest multiple of rowBytes
-  return ((blockSize + rowBytes - 1) / rowBytes) * rowBytes;
-}
-
+/**
+ * Load a local file into memory as a sequence of MemoryBlocks.
+ *
+ * @param path - Path to binary matrix file.
+ * @return - Vector of memory blocks.
+ */
 std::vector<std::shared_ptr<MemoryBlock>> BlockLoader::loadToMemory(
     std::string path) {
 
@@ -105,6 +77,7 @@ std::vector<std::shared_ptr<MemoryBlock>> BlockLoader::loadToMemory(
     auto descriptor = std::make_unique<BlockDescriptor>(location);
     auto blockFuture = std::async(std::launch::async, loadFromDescriptor,
                                   statsRef, std::move(descriptor));
+    std::cout << i << std::endl;
     blockFutures.push_back(std::move(blockFuture));
   }
 
@@ -114,4 +87,69 @@ std::vector<std::shared_ptr<MemoryBlock>> BlockLoader::loadToMemory(
   }
 
   return blocks;
+}
+
+/**
+ * Get stats of multitude-encoded binary file.
+ */
+std::unique_ptr<FileStats> stat(std::string path) {
+  std::ifstream file(path, std::ios::in | std::ios::binary);
+  if (!file.is_open()) {
+    return NULL;
+  }
+
+  int cols;
+  file.read((char*)&cols, sizeof(int));
+  file.seekg(0, file.end);
+  long size = file.tellg();
+
+  return std::make_unique<FileStats>(cols, size);
+}
+
+/**
+ * Determine best number of blocks to load a file into.
+ */
+int determineNumBlocks(FileStats& fileStats) {
+  long numCores = std::thread::hardware_concurrency();
+  if (fileStats.size > numCores * MIN_BLOCK) {
+    return numCores;
+  }
+
+  return (int)(ceil(fileStats.size / MIN_BLOCK));
+}
+
+/**
+ * Determine the next unique block ID.
+ *
+ * @return - Unique block identifier.
+ */
+std::string nextBlockId() {
+  static const char alphanum[] =
+      "0123456789"
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+      "abcdefghijklmnopqrstuvwxyz";
+
+  static const int n = sizeof(alphanum) - 1;
+
+  char s[ID_LENGTH+1];
+  for (int i = 0; i < ID_LENGTH; ++i) {
+    int idx = rand() / (RAND_MAX / n + 1);
+    s[i] = alphanum[idx];
+  }
+
+  s[ID_LENGTH] = 0;
+  return std::string(s);
+}
+
+/**
+ * Determine the block size for a file and target number of blocks.
+ */
+long getBlockSize(FileStats& fileStats, int numBlocks) {
+  long rowBytes = fileStats.cols * sizeof(double);
+  long blockSize = fileStats.size / numBlocks;
+
+  // Round up to nearest multiple of rowBytes
+  return ((blockSize + rowBytes - 1) / rowBytes) * rowBytes;
+}
+
 }
